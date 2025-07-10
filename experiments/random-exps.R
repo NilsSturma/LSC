@@ -168,5 +168,3 @@ rownames(table) <- pErdosList
 print(table)
 write.table(table, file = paste("O", nNodes-nLat, "L", nLat, ".txt", sep=""), 
             sep = "\t", row.names = TRUE, col.names = TRUE)
-
-
