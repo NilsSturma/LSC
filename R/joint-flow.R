@@ -157,6 +157,3 @@ constructPathSystem <- function(lpRes, g, gSub, s, t){
   paths <- c(pathsMain, pathsSub)
   return(paths)
 }
-
-
-
