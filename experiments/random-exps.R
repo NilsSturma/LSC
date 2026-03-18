@@ -30,12 +30,12 @@ cl <- makeCluster(cores, outfile = "")
 registerDoParallel(cl)
 set.seed(seed)
 
-results <- foreach(k = 1:length(pErdosList), 
-                   .combine = 'c', 
+results <- foreach(k = 1:length(pErdosList),
+                   .combine = 'c',
                    .multicombine=TRUE,
                    .errorhandling="remove",
                    .packages=c("igraph", "sna", "SEMID", "lpSolve")) %dorng% {
-                     
+
 pErdos = pErdosList[k]
 res <- list()
 
@@ -50,15 +50,15 @@ for (i in 1:ngraphs){
       L <- L[P,P]
       g = LatentDigraph(L, observedNodes, latentNodes)
       gCan <- canonicalization(g)
-      
+
       idRes1 <- checkID(g, subsetSizeControl=1)
       idResCan1 <- checkID(gCan, subsetSizeControl=1)
       idRes2 <- checkID(g, subsetSizeControl=2)
       idResCan2 <- checkID(gCan, subsetSizeControl=2)
       idRes3 <- checkID(g, subsetSizeControl=3)
       idResCan3 <- checkID(gCan, subsetSizeControl=3)
-      
-      list("g"=g, "pErdos"=pErdos,  
+
+      list("g"=g, "pErdos"=pErdos,
            "res1"=idRes1, "resCan1"=idResCan1,
            "res2"=idRes2, "resCan2"=idResCan2,
            "res3"=idRes3, "resCan3"=idResCan3)
@@ -66,17 +66,17 @@ for (i in 1:ngraphs){
     error = function(e){
       print(e$message)
       print(L)
-      list("g"=NA, "pErdos"=pErdos,  
-           "res1"=NA, "resCan1"=NA, 
+      list("g"=NA, "pErdos"=pErdos,
+           "res1"=NA, "resCan1"=NA,
            "res2"=NA, "resCan2"=NA,
            "res3"=NA, "resCan3"=NA)
     }
   )
-  
+
   res[[i]] <- obj
   }
 res
-}           
+}
 
 stopCluster(cl)
 
@@ -93,21 +93,21 @@ print(length(results))
 jsonList = list()
 for (k in 1:length(results)){
   oldObj = results[[k]]
-  if (!is.na(oldObj$g)){
+  if (!identical(oldObj$g, NA)){
     adjMat = oldObj$g$L()
-    newObj <- list(list("pErdos"=oldObj$pErdos,  
-                        "res1"=oldObj$res1, "resCan1"=oldObj$resCan1, 
-                        "res2"=oldObj$res2, "resCan2"=oldObj$resCan2, 
-                        "res3"=oldObj$res3, "resCan3"=oldObj$resCan3, 
-                        "adjMatrix" = c(t(adjMat))))  # rowwise! # !!!!!! SOMETHING DOES NOT WORK HERE (saves all with ) !!!!!!
+    newObj <- list(list("pErdos"=oldObj$pErdos,
+                        "res1"=oldObj$res1, "resCan1"=oldObj$resCan1,
+                        "res2"=oldObj$res2, "resCan2"=oldObj$resCan2,
+                        "res3"=oldObj$res3, "resCan3"=oldObj$resCan3,
+                        "adjMatrix" = c(t(adjMat))))  # rowwise
   } else {
-    newObj <- list(list("pErdos"=oldObj$pErdos,  
-                        "res1"=oldObj$res1, "resCan1"=oldObj$resCan1, 
-                        "res2"=oldObj$res2, "resCan2"=oldObj$resCan2, 
-                        "res3"=oldObj$res3, "resCan3"=oldObj$resCan3, 
-                        "adjMatrix" = NA)) 
+    newObj <- list(list("pErdos"=oldObj$pErdos,
+                        "res1"=oldObj$res1, "resCan1"=oldObj$resCan1,
+                        "res2"=oldObj$res2, "resCan2"=oldObj$resCan2,
+                        "res3"=oldObj$res3, "resCan3"=oldObj$resCan3,
+                        "adjMatrix" = NA))
   }
-  
+
   names(newObj) <- k
   jsonList = c(jsonList, newObj)
 }
@@ -166,5 +166,5 @@ colnames(table) <- c("nLSC1", "nCanLSC1", "nLSC2", "nCanLSC2", "nLSC3", "nCanLSC
 rownames(table) <- pErdosList
 
 print(table)
-write.table(table, file = paste("O", nNodes-nLat, "L", nLat, ".txt", sep=""), 
+write.table(table, file = paste("O", nNodes-nLat, "L", nLat, ".txt", sep=""),
             sep = "\t", row.names = TRUE, col.names = TRUE)
