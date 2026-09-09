@@ -27,7 +27,7 @@ semiDirectEffectGraph <- function(g){
     L[1:nObs,(nObs+1):nTot] %*% 
     solve(diag(nLat) - L[(nObs+1):nTot,(nObs+1):nTot]) %*% 
     L[(nObs+1):nTot,1:nObs]
-  semiDirectAdjMat <- 1*(semiDirectAdjMat > 0)
+  semiDirectAdjMat <- 1*(round(semiDirectAdjMat) > 0)
   gSemiDirect <-  LatentDigraph(semiDirectAdjMat, seq(nObs), c())
   return(gSemiDirect)
 }

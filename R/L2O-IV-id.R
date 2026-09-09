@@ -120,10 +120,47 @@ L2OIVequation <- function(graph, outcome, indicators) {
 }
 
 
-identifyL2OIV <- function(graph, indicators) {
+# All valid scaling indicators of a latent node, i.e. all pure observed
+# children: observed children whose only parent is that latent node.
+validScalingIndicators <- function(graph, h) {
+  observedChildren <- children(
+    graph,
+    h,
+    includeObserved = TRUE,
+    includeLatents = FALSE
+  )
+
+  isPure <- vapply(observedChildren, function(s) {
+    pa <- parents(graph, s)
+    length(pa) == 1 && pa == h
+  }, logical(1))
+
+  return(observedChildren[isPure])
+}
+
+
+# For every latent node, checks that the indicators of its latent parents are
+# not also observed parents of it. Returns one logical value per latent node.
+disjointParentIndicators <- function(graph, indicators) {
   observed <- observedNodes(graph)
   latents  <- latentNodes(graph)
-  
+
+  return(vapply(latents, function(y) {
+    pa <- parents(graph, y)
+    latentParents <- intersect(pa, latents)
+    observedParents <- intersect(pa, observed)
+    parentIndicators <- indicators[as.character(latentParents)]
+
+    length(intersect(parentIndicators, observedParents)) == 0
+  }, logical(1)))
+}
+
+
+# Applies the L2O instrumental set criterion for one given choice of scaling
+# indicators, one per latent node.
+identifyL2OIVforIndicators <- function(graph, indicators) {
+  latents  <- latentNodes(graph)
+
   if (!setequal(names(indicators), as.character(latents)) ||
       any(lengths(indicators) != 1)) {
     stop("Assign exactly one scaling indicator to every latent node.")
@@ -137,24 +174,7 @@ identifyL2OIV <- function(graph, indicators) {
   
   # Check that every scaling indicator is a pure observed child.
   valid <- vapply(latents, function(h) {
-    s <- indicators[as.character(h)]
-    
-    observedChildren <- children(
-      graph,
-      h,
-      includeObserved = TRUE,
-      includeLatents = FALSE
-    )
-    
-    pa <- if (s %in% observed) {
-      parents(graph, s)
-    } else {
-      integer()
-    }
-    
-    s %in% observedChildren &&
-      length(pa) == 1 &&
-      pa == h
+    indicators[as.character(h)] %in% validScalingIndicators(graph, h)
   }, logical(1))
   
   if (!all(valid)) {
@@ -166,14 +186,7 @@ identifyL2OIV <- function(graph, indicators) {
 
   # An indicator of a latent parent cannot also be an observed parent of the
   # same latent node.
-  disjointParents <- vapply(latents, function(y) {
-    pa <- parents(graph, y)
-    latentParents <- intersect(pa, latents)
-    observedParents <- intersect(pa, observed)
-    parentIndicators <- indicators[as.character(latentParents)]
-
-    length(intersect(parentIndicators, observedParents)) == 0
-  }, logical(1))
+  disjointParents <- disjointParentIndicators(graph, indicators)
 
   if (!all(disjointParents)) {
     stop(
@@ -215,6 +228,60 @@ identifyL2OIV <- function(graph, indicators) {
 }
 
 
+# One valid choice of scaling indicators, i.e. one pure observed child per
+# latent node such that no indicator of a latent parent is also an observed
+# parent of the same latent node. The criterion does not depend on which valid
+# choice is used, hence the search stops at the first one. A pure observed child
+# has exactly one parent, so the candidates of different latent nodes are
+# automatically distinct. Returns NULL if there is no valid choice.
+firstValidIndicators <- function(graph) {
+  latents <- latentNodes(graph)
+
+  if (length(latents) == 0) {
+    return(setNames(integer(0), character(0)))
+  }
+
+  candidates <- setNames(
+    lapply(latents, function(h) validScalingIndicators(graph, h)),
+    latents
+  )
+
+  if (any(lengths(candidates) == 0)) {
+    return(NULL)
+  }
+
+  grid <- expand.grid(candidates, KEEP.OUT.ATTRS = FALSE)
+
+  for (i in seq_len(nrow(grid))) {
+    indicators <- setNames(as.integer(grid[i, ]), latents)
+
+    if (all(disjointParentIndicators(graph, indicators))) {
+      return(indicators)
+    }
+  }
+
+  return(NULL)
+}
+
+
+# Applies the L2O instrumental set criterion. The scaling indicators are not
+# passed but chosen automatically, since the criterion does not depend on which
+# valid choice of one pure observed child per latent node is used.
+identifyL2OIV <- function(graph) {
+  indicators <- firstValidIndicators(graph)
+
+  if (is.null(indicators)) {
+    return(list(
+      allIdentified = FALSE,
+      scalingIndicators = integer(0),
+      equations = list()
+    ))
+  }
+
+  return(identifyL2OIVforIndicators(graph, indicators))
+}
+
+
 
 
 ###############
@@ -246,20 +313,16 @@ graph <- LatentDigraph(
 )
 plot(graph)
 
-# One pure scaling indicator per latent
-indicators <- list(
-  `8`  = 1,
-  `9`  = 3,
-  `10` = 5
-)
-
-result <- identifyL2OIV(
-  graph,
-  indicators
-)
+result <- identifyL2OIV(graph)
 
 result$allIdentified
+
+# The first valid choice of scaling indicators, one pure observed child per
+# latent node. Every latent node has two of them here, and any other valid
+# choice gives the same result.
 result$scalingIndicators
+identifyL2OIVforIndicators(graph, c(`8` = 2, `9` = 4, `10` = 6))$allIdentified
+
 result$equations[["10"]]
 plot(result$equations[["10"]]$transformedGraph)
 
@@ -300,16 +363,11 @@ graph2 <- LatentDigraph(
 )
 plot(graph2)
 
-indicators2 <- c(
-  `10` = 1,
-  `11` = 2,
-  `12` = 3
-)
+# Each latent node has exactly one pure observed child, hence there is only
+# one valid choice of scaling indicators.
+result2 <- identifyL2OIV(graph2)
 
-result2 <- identifyL2OIV(
-  graph2,
-  indicators2
-)
+result2$scalingIndicators
 
 # There is one equation for each latent outcome with a latent parent.
 result2$allIdentified
@@ -346,16 +404,10 @@ graph3 <- LatentDigraph(
 )
 plot(graph3)
 
-indicators3 <- c(
-  `6` = 1,
-  `7` = 2,
-  `8` = 3
-)
+# Again only one valid choice of scaling indicators, and the criterion fails.
+result3 <- identifyL2OIV(graph3)
 
-result3 <- identifyL2OIV(
-  graph3,
-  indicators3
-)
+result3$scalingIndicators
 
 # The equation for latent outcome 7 has no full-rank instrumental set.
 result3$allIdentified
