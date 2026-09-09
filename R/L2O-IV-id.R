@@ -284,6 +284,10 @@ identifyL2OIV <- function(graph) {
 
 
 
+# The examples are only run in an interactive session, so that this file
+# can be sourced from a script without side effects.
+if (interactive()) {
+
 ###############
 ### Example ###
 ###############
@@ -415,3 +419,5 @@ result3$equations[["7"]]
 plot(result3$equations[["7"]]$transformedGraph)
 result3$equations[["8"]]
 plot(result3$equations[["8"]]$transformedGraph)
+
+}

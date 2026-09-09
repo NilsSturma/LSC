@@ -108,6 +108,10 @@ directID <- function(g) {
 }
 
 
+# The examples are only run in an interactive session, so that this file
+# can be sourced from a script without side effects.
+if (interactive()) {
+
 ###############
 ### Example ###
 ###############
@@ -158,3 +162,5 @@ resNotID$id
 resNotID$S
 resNotID$certificates[["5"]]
 resNotID$certificates[["6"]]
+
+}
