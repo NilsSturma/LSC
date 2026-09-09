@@ -1,5 +1,5 @@
 # Latent Subgraph Criterion
-This repository contains an implementation of the latent subgraph criterion  in `R`. It builds on the `SEMID` library available on `CRAN`. The function `checkID(g)` checks the latent subgraph criterion by solving integer linear programs. Here, `g` is a `LatentDigraph` object representing a graph, for more details see the `SEMID`documentation.
+This repository contains an implementation of the latent subgraph criterion  in `R`. It builds on the `SEMID` library available on `CRAN`. The function `LSCID(g)` checks the latent subgraph criterion by solving integer linear programs. Here, `g` is a `LatentDigraph` object representing a graph, for more details see the `SEMID`documentation.
 
 ```         
 > # Latent digraphs are specified by their directed adjacency matrix L
@@ -22,7 +22,7 @@ This repository contains an implementation of the latent subgraph criterion  in 
 > plot(g)
 >
 > # Check the latent subgraph criterion
-> res <- checkID(g)
+> res <- LSCID(g)
 > res$id
 ```
 

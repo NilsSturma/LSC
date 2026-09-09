@@ -177,7 +177,7 @@ checkTrekSystem <- function(g, Z, v, Ya){
   }
 }
 
-checkID <- function(g, subsetSizeControl=Inf){
+LSCID <- function(g, subsetSizeControl=Inf){
   
   g$.semiDirect <- semiDirectEffectGraph(g)
   g$.latentCovGraph <-latentCovGraph(g)

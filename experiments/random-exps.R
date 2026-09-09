@@ -26,7 +26,7 @@ nCores = 7   # number of cores used for the parallelization
 observedNodes = seq(nNodes-nLat)
 latentNodes = (nNodes-nLat+1):nNodes
 
-# Since checkID takes considerably longer on denser graphs, the tasks are 
+# Since LSCID takes considerably longer on denser graphs, the tasks are 
 # ordered by decreasing density, so that the expensive graphs are dispatched 
 # first and the cheap ones fill up the time of the cores that become free 
 # (longest job first).
@@ -57,8 +57,8 @@ obj <- tryCatch(
     g = LatentDigraph(L, observedNodes, latentNodes)
     gCan <- canonicalization(g)
 
-    idRes <- checkID(g, subsetSizeControl=Inf)
-    idResCan <- checkID(gCan, subsetSizeControl=Inf)
+    idRes <- LSCID(g, subsetSizeControl=Inf)
+    idResCan <- LSCID(gCan, subsetSizeControl=Inf)
 
     list("g"=g, "pErdos"=pErdos,
          "res"=idRes, "resCan"=idResCan)
