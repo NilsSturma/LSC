@@ -21,8 +21,8 @@ subsetsOfSize <- function(x, k) {
 semiDirectEffectGraph <- function(g){
   nObs <- g$numObserved()
   nLat <- g$numLatents()
-  nTot <- nrow(L)
   L <- g$.L
+  nTot <- nrow(L)
   semiDirectAdjMat <- L[1:nObs,1:nObs] +  
     L[1:nObs,(nObs+1):nTot] %*% 
     solve(diag(nLat) - L[(nObs+1):nTot,(nObs+1):nTot]) %*% 
@@ -215,8 +215,12 @@ checkID <- function(g, subsetSizeControl=Inf){
       # Collect basic info of unsolved node v
       semiParentsOfV <- g$.semiDirect$parents(v)
       
+      maxK <- min(subsetSizeControl, 
+                  nLat, 
+                  floor((nObs - 1 - length(semiParentsOfV)) / 2))
+      
       # Loop over possible cardinalities of |H1|+|H2|
-      for (k in seq(0, length = 1 + min(subsetSizeControl, nLat))){
+      for (k in seq(0, length = 1 + maxK)){
         
         # Loop over all sets H1 and H2 such that |H1|+|H2|=k
         for (l in 0:k){

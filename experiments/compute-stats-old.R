@@ -2,7 +2,7 @@ library(rjson)
 
 pErdosList = seq(0.15, 0.45, 0.05)
 
-graphs = fromJSON(file="experiments/O10L5.json")
+graphs = fromJSON(file="experiments/O10L5-old.json")
 length(graphs)
 
 
@@ -13,17 +13,17 @@ names(rowMatching) = pErdosList
 for (k in 1:length(graphs)){
   obj = graphs[[k]]
   row = rowMatching[[as.character(obj$pErdos)]]
-  if (!any(obj$res == "NA") && !any(obj$resCan == "NA")){
-    if (obj$res$id){
+  if (!any(obj$res3 == "NA") && !any(obj$resCan3 == "NA")){
+    if (obj$res3$id){
       table[row, 1] <- table[row, 1]+1
     }
-    if (obj$resCan$id){
+    if (obj$resCan3$id){
       table[row, 2] <- table[row, 2]+1
     }
-    if (obj$res$id && !obj$resCan$id){
+    if (obj$res3$id && !obj$resCan3$id){
       table[row, 3] <- table[row, 3]+1
     }
-    if (!obj$res$id && obj$resCan$id){
+    if (!obj$res3$id && obj$resCan3$id){
       table[row, 4] <- table[row, 4]+1
     }
   }
@@ -34,4 +34,4 @@ rownames(table) <- pErdosList
 
 print(table)
 colSums(table)
-write.table(table, file = "experiments/O10L5-can.txt", sep = "\t", row.names = TRUE, col.names = TRUE)
+write.table(table, file = "experiments/O10L5-can-old.txt", sep = "\t", row.names = TRUE, col.names = TRUE)
