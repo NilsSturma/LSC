@@ -233,3 +233,12 @@ print(table)
 print(colSums(table))
 write.table(table, file = paste("experiments/O", nObs, "L", nLat, "-latent.txt", sep=""),
             sep = "\t", row.names = TRUE, col.names = TRUE)
+
+# The main comparison, with a total row, in a second file
+comparison = table[, c("nGraphs", "nLSC", "nDirectOrig", "nL2OOrig",
+                       "nLSCDirect", "nLSCL2O")]
+comparison = rbind(comparison, "total" = colSums(comparison))
+
+print(comparison)
+write.table(comparison, file = paste("experiments/O", nObs, "L", nLat, "-latent-table.txt", sep=""),
+            sep = "\t", row.names = TRUE, col.names = TRUE)
