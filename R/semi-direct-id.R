@@ -156,24 +156,39 @@ checkTrekSystem <- function(g, Z, v, Ya){
   flowSubGraph <- igraph::graph_from_adjacency_matrix(flowAdjMatSub, mode="directed")
 
   # Run linear program
+  target <- length(Z) + length(semiParentsOfV)
   res <- jointFlow(flowGraph, flowSubGraph, s, t)
   objval <- res$objval
   
-  if (!all(res$solution - round(res$solution) == 0)){
+  # The linear program is a relaxation of the integer program, so its maximal
+  # value is an upper bound on the one of the integer program. If it is already 
+  # strictly smaller than |Z|+|P|, no trek system of the required form exists 
+  # and the integer program does not have to be solved. It is only needed when 
+  # the bound |Z|+|P| is attained by a fractional solution, in which case it 
+  # decides whether the bound is also attained by an integer solution.
+  ilpRun <- FALSE
+  ilpDiff <- FALSE
+  if ((objval > target - 1e-9) && !all(res$solution - round(res$solution) == 0)){
     #print("Linear program did not return integer solution.")
+    ilpRun <- TRUE
     res <- jointFlow(flowGraph, flowSubGraph, s, t, int=TRUE)
-    if ((res$objval != objval) && ((length(Z)+length(semiParentsOfV))==objval)){
+    if (res$objval < objval - 1e-9){
+      ilpDiff <- TRUE
       print("Maximal value of integer program differs to maximal value |Z|+|P| of linear program.")
     }
   } 
   objval <- res$objval
-  if(objval==(length(Z)+length(semiParentsOfV))){
+  if(objval > target - 1e-9){
     TrekSystem <- constructTrekSystem(res, flowGraph, flowSubGraph, s, t, m)
     return(list("objval" = res$objval,  
                 "trekSystem" = TrekSystem$TrekSystem, 
-                "Y"=TrekSystem$startNodes))
+                "Y"=TrekSystem$startNodes,
+                "ilpRun" = ilpRun,
+                "ilpDiff" = ilpDiff))
   } else {
-    return(list("objval" = res$objval))
+    return(list("objval" = res$objval,
+                "ilpRun" = ilpRun,
+                "ilpDiff" = ilpDiff))
   }
 }
 
@@ -198,6 +213,17 @@ LSCID <- function(g, subsetSizeControl=Inf){
   H1s <- rep(list(numeric(0)), nObs)
   H2s <- rep(list(numeric(0)), nObs)
   trekSystems <- rep(list(numeric(0)), nObs)
+  
+  # Number of times the linear program was solved (once per call of
+  # checkTrekSystem) and number of times the integer program had to be solved 
+  # on top of it because the linear program attained the bound |Z|+|P| with a 
+  # fractional solution
+  nLinearPrograms <- 0
+  nIntegerPrograms <- 0
+  
+  # Number of solved integer programs whose maximal value is strictly smaller 
+  # than the maximal value |Z|+|P| of the corresponding linear program
+  nIntegerProgramsDiff <- 0
   
   if (length(S)!=length(observedNodes)){
     changeFlag <- TRUE
@@ -236,9 +262,13 @@ LSCID <- function(g, subsetSizeControl=Inf){
                 Ya <- allowedNodesForY(g, v, S, Z, H1, H2)
                 if (length(Ya) >= (length(semiParentsOfV) + length(Z))){
                   res <- checkTrekSystem(g, Z, v, Ya)
+                  nLinearPrograms <- nLinearPrograms + 1
+                  nIntegerPrograms <- nIntegerPrograms + res$ilpRun
+                  nIntegerProgramsDiff <- nIntegerProgramsDiff + res$ilpDiff
                   
                   # If trek system exists, we know that v is identified
-                  if(res$objval==(length(semiParentsOfV) + length(Z))){
+                  # (same tolerance as in checkTrekSystem)
+                  if(res$objval > (length(semiParentsOfV) + length(Z)) - 1e-9){
                     Ys[[v]] <- res$Y
                     Zs[[v]] <- Z
                     H1s[[v]] <- H1
@@ -276,6 +306,9 @@ LSCID <- function(g, subsetSizeControl=Inf){
                  "H1s"=H1s,
                  "H2s"=H2s,
                  "trekSystems"=trekSystems,
-                 "id"=identifiable)
+                 "id"=identifiable,
+                 "nLP"=nLinearPrograms,
+                 "nILP"=nIntegerPrograms,
+                 "nILPdiff"=nIntegerProgramsDiff)
   return(result)
 }
