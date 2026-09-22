@@ -26,10 +26,6 @@ nCores = 7   # number of cores used for the parallelization
 observedNodes = seq(nNodes-nLat)
 latentNodes = (nNodes-nLat+1):nNodes
 
-# Since LSCID takes considerably longer on denser graphs, the tasks are 
-# ordered by decreasing density, so that the expensive graphs are dispatched 
-# first and the cheap ones fill up the time of the cores that become free 
-# (longest job first).
 tasks = expand.grid(graph = 1:ngraphs, pErdos = pErdosList)
 tasks = tasks[order(-tasks$pErdos), ]
 
@@ -57,17 +53,24 @@ obj <- tryCatch(
     g = LatentDigraph(L, observedNodes, latentNodes)
     gCan <- canonicalization(g)
 
+    tStart <- proc.time()[["elapsed"]]
     idRes <- LSCID(g, subsetSizeControl=Inf)
+    time <- proc.time()[["elapsed"]] - tStart
+
+    tStart <- proc.time()[["elapsed"]]
     idResCan <- LSCID(gCan, subsetSizeControl=Inf)
+    timeCan <- proc.time()[["elapsed"]] - tStart
 
     list("g"=g, "pErdos"=pErdos,
-         "res"=idRes, "resCan"=idResCan)
+         "res"=idRes, "resCan"=idResCan,
+         "time"=time, "timeCan"=timeCan)
   },
   error = function(e){
     print(e$message)
     print(L)
     list("g"=NA, "pErdos"=pErdos,
-         "res"=NA, "resCan"=NA)
+         "res"=NA, "resCan"=NA,
+         "time"=NA, "timeCan"=NA)
   }
 )
 
@@ -80,7 +83,6 @@ stopCluster(cl)
 # Save #
 ########
 
-
 # Change format of list
 jsonList = list()
 for (k in 1:length(results)){
@@ -89,10 +91,12 @@ for (k in 1:length(results)){
     adjMat = oldObj$g$L()
     newObj <- list(list("pErdos"=oldObj$pErdos,
                         "res"=oldObj$res, "resCan"=oldObj$resCan,
+                        "time"=oldObj$time, "timeCan"=oldObj$timeCan,
                         "adjMatrix" = c(t(adjMat))))  # rowwise
   } else {
     newObj <- list(list("pErdos"=oldObj$pErdos,
                         "res"=oldObj$res, "resCan"=oldObj$resCan,
+                        "time"=oldObj$time, "timeCan"=oldObj$timeCan,
                         "adjMatrix" = NA))
   }
 
@@ -115,6 +119,13 @@ table = matrix(0,length(pErdosList),2)
 rowMatching = as.list(1:length(pErdosList))
 names(rowMatching) = pErdosList
 
+timeSums = matrix(0,length(pErdosList),2)
+timeCounts = matrix(0,length(pErdosList),2)
+fracSums = matrix(0,length(pErdosList),2)
+fracCounts = matrix(0,length(pErdosList),2)
+diffSums = matrix(0,length(pErdosList),2)
+nILPSums = matrix(0,length(pErdosList),2)
+
 for (k in 1:length(results)){
   obj = results[[k]]
   row = rowMatching[[as.character(obj$pErdos)]]
@@ -122,15 +133,44 @@ for (k in 1:length(results)){
     if (obj$res$id){
       table[row, 1] <- table[row, 1]+1
     }
+    nILPSums[row, 1] <- nILPSums[row, 1] + obj$res$nILP
+    if (obj$res$nLP > 0){
+      fracSums[row, 1] <- fracSums[row, 1] + obj$res$nILP/obj$res$nLP
+      diffSums[row, 1] <- diffSums[row, 1] + obj$res$nILPdiff/obj$res$nLP
+      fracCounts[row, 1] <- fracCounts[row, 1] + 1
+    }
   }
   if (!any(is.na(obj$resCan))){
     if (obj$resCan$id){
       table[row, 2] <- table[row, 2]+1
     }
+    nILPSums[row, 2] <- nILPSums[row, 2] + obj$resCan$nILP
+    if (obj$resCan$nLP > 0){
+      fracSums[row, 2] <- fracSums[row, 2] + obj$resCan$nILP/obj$resCan$nLP
+      diffSums[row, 2] <- diffSums[row, 2] + obj$resCan$nILPdiff/obj$resCan$nLP
+      fracCounts[row, 2] <- fracCounts[row, 2] + 1
+    }
+  }
+  if (!is.na(obj$time)){
+    timeSums[row, 1] <- timeSums[row, 1] + obj$time
+    timeCounts[row, 1] <- timeCounts[row, 1] + 1
+  }
+  if (!is.na(obj$timeCan)){
+    timeSums[row, 2] <- timeSums[row, 2] + obj$timeCan
+    timeCounts[row, 2] <- timeCounts[row, 2] + 1
   }
 }
 
-colnames(table) <- c("nLSC", "nCanLSC")
+avgTimes = timeSums / timeCounts
+avgFracs = fracSums / fracCounts
+avgDiffs = diffSums / fracCounts
+table = cbind(table, round(avgTimes, 4), round(avgFracs, 4), round(avgDiffs, 4),
+              nILPSums)
+
+colnames(table) <- c("nLSC", "nCanLSC", "timeLSC", "timeCanLSC",
+                     "fracILPLSC", "fracILPCanLSC",
+                     "fracDiffLSC", "fracDiffCanLSC",
+                     "nILPLSC", "nILPCanLSC")
 rownames(table) <- pErdosList
 
 print(table)

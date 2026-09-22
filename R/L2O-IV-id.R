@@ -26,8 +26,7 @@ L2OIVequation <- function(graph, outcome, indicators) {
   A <- L(graph)
   dimnames(A) <- list(nodes, nodes)
   
-  # Explicit error nodes encode the transformed composite error.
-  # No error variance is assigned or fixed.
+  # Explicit error nodes
   error <- setNames(max(nodes) + seq_along(nodes), nodes)
   
   transformedNodes <- c(observed, latents, unname(error))
@@ -39,14 +38,11 @@ L2OIVequation <- function(graph, outcome, indicators) {
     dimnames = list(transformedNodes, transformedNodes)
   )
   
-  # Original graph and independent error sources
+  # Original graph and independent error variables
   B[as.character(nodes), as.character(nodes)] <- A
   B[cbind(as.character(error), as.character(nodes))] <- 1
   
-  # Whole-equation L2O transformation.
-  #
-  # All transformed regressor arrows are omitted because the
-  # instrumental-set criterion is applied to the edge-deleted graph.
+  # L2O transformation.
   B[
     as.character(allParents),
     as.character(outcome)
@@ -57,14 +53,11 @@ L2OIVequation <- function(graph, outcome, indicators) {
     as.character(outcomeIndicator)
   ] <- 0
   
-  # Outcome disturbance enters the transformed outcome.
   B[
     as.character(error[as.character(outcome)]),
     as.character(outcomeIndicator)
   ] <- 1
   
-  # Measurement errors of latent-parent indicators enter the
-  # transformed composite error.
   B[
     as.character(error[as.character(parentIndicators)]),
     as.character(outcomeIndicator)
@@ -77,7 +70,7 @@ L2OIVequation <- function(graph, outcome, indicators) {
   )
   
   # Valid candidate instruments have no trek to the transformed
-  # outcome in the edge-deleted L2O graph.
+  # outcome in the L2O graph.
   candidates <- setdiff(
     observed,
     trFrom(
@@ -86,9 +79,8 @@ L2OIVequation <- function(graph, outcome, indicators) {
       includeLatents = FALSE
     )
   )
-  
 
-  # Find a full-rank instrumental set for the complete equation.
+  # Find a MIIV
   fit <- if (length(candidates) >= length(regressors)) {
     getTrekSystem(
       transformed,
@@ -120,8 +112,7 @@ L2OIVequation <- function(graph, outcome, indicators) {
 }
 
 
-# All valid scaling indicators of a latent node, i.e. all pure observed
-# children: observed children whose only parent is that latent node.
+# All valid scaling indicators of a latent node, i.e. all pure observed children
 validScalingIndicators <- function(graph, h) {
   observedChildren <- children(
     graph,
@@ -228,12 +219,7 @@ identifyL2OIVforIndicators <- function(graph, indicators) {
 }
 
 
-# One valid choice of scaling indicators, i.e. one pure observed child per
-# latent node such that no indicator of a latent parent is also an observed
-# parent of the same latent node. The criterion does not depend on which valid
-# choice is used, hence the search stops at the first one. A pure observed child
-# has exactly one parent, so the candidates of different latent nodes are
-# automatically distinct. Returns NULL if there is no valid choice.
+# Find one valid assignment of scaling indicators
 firstValidIndicators <- function(graph) {
   latents <- latentNodes(graph)
 
@@ -264,9 +250,7 @@ firstValidIndicators <- function(graph) {
 }
 
 
-# Applies the L2O instrumental set criterion. The scaling indicators are not
-# passed but chosen automatically, since the criterion does not depend on which
-# valid choice of one pure observed child per latent node is used.
+# Applies the MIIV criterion via a L2O transformation.
 identifyL2OIV <- function(graph) {
   indicators <- firstValidIndicators(graph)
 
@@ -284,24 +268,24 @@ identifyL2OIV <- function(graph) {
 
 
 
+# The examples are only run in an interactive session, so that this file
+# can be sourced from a script.
+if (interactive()) {
+
 ###############
 ### Example ###
 ###############
 A <- matrix(0, 10, 10)
 
-# Pure indicators of latent 8
 A[8, 1] <- 1
 A[8, 2] <- 1
 
-# Pure indicators of latent 9
 A[9, 3] <- 1
 A[9, 4] <- 1
 
-# Pure indicators of latent 10
 A[10, 5] <- 1
 A[10, 6] <- 1
 
-# Observed and latent parents of latent 10
 A[7, 10] <- 1
 A[8, 10] <- 1
 A[9, 10] <- 1
@@ -317,9 +301,6 @@ result <- identifyL2OIV(graph)
 
 result$allIdentified
 
-# The first valid choice of scaling indicators, one pure observed child per
-# latent node. Every latent node has two of them here, and any other valid
-# choice gives the same result.
 result$scalingIndicators
 identifyL2OIVforIndicators(graph, c(`8` = 2, `9` = 4, `10` = 6))$allIdentified
 
@@ -330,29 +311,23 @@ plot(result$equations[["10"]]$transformedGraph)
 ############################
 ### More complex example ###
 ############################
-# Observed nodes: 1, ..., 9; latent nodes: 10, 11, 12.
 A2 <- matrix(0, 12, 12)
 
-# Each latent has exactly one pure child, used as its scaling indicator.
 A2[10, 1] <- 1
 A2[11, 2] <- 1
 A2[12, 3] <- 1
 
-# Additional, non-pure indicators. Observed node 9 is also their parent.
 A2[10, 4] <- 1
 A2[11, 5] <- 1
 A2[12, 6] <- 1
 A2[9, 4:6] <- 1
 
-# Latent variables 11 and 12 both have a latent parent.
 A2[10, 11] <- 1
 A2[11, 12] <- 1
 
-# Directed edges from observed to latent variables.
 A2[7, 11] <- 1
 A2[8, 12] <- 1
 
-# Directed edges between observed variables.
 A2[7, 8] <- 1
 A2[8, 9] <- 1
 
@@ -363,13 +338,10 @@ graph2 <- LatentDigraph(
 )
 plot(graph2)
 
-# Each latent node has exactly one pure observed child, hence there is only
-# one valid choice of scaling indicators.
 result2 <- identifyL2OIV(graph2)
 
 result2$scalingIndicators
 
-# There is one equation for each latent outcome with a latent parent.
 result2$allIdentified
 result2$equations[["11"]]
 plot(result2$equations[["11"]]$transformedGraph)
@@ -380,19 +352,15 @@ plot(result2$equations[["12"]]$transformedGraph)
 ####################################
 ### Sparse non-identified example ###
 ####################################
-# Observed nodes: 1, ..., 5; latent nodes: 6, 7, 8.
 A3 <- matrix(0, 8, 8)
 
-# Each latent has exactly one pure child.
 A3[6, 1] <- 1
 A3[7, 2] <- 1
 A3[8, 3] <- 1
 
-# Latent variables 7 and 8 both have a latent parent.
 A3[6, 7] <- 1
 A3[7, 8] <- 1
 
-# One observed parent per latent outcome and one observed-to-observed edge.
 A3[4, 7] <- 1
 A3[5, 8] <- 1
 A3[4, 5] <- 1
@@ -404,14 +372,13 @@ graph3 <- LatentDigraph(
 )
 plot(graph3)
 
-# Again only one valid choice of scaling indicators, and the criterion fails.
 result3 <- identifyL2OIV(graph3)
 
 result3$scalingIndicators
 
-# The equation for latent outcome 7 has no full-rank instrumental set.
 result3$allIdentified
 result3$equations[["7"]]
 plot(result3$equations[["7"]]$transformedGraph)
 result3$equations[["8"]]
 plot(result3$equations[["8"]]$transformedGraph)
+}

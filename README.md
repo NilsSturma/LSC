@@ -31,4 +31,5 @@ To reproduce the experimental results in the paper, run:
 ```
 Rscript experiments/random-exps.R
 Rscript experiments/compute-stats.R
+Rscript experiments/latent-effect-exps.R
 ```
