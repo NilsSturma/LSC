@@ -5,8 +5,6 @@ library(SEMID)
 ################################
 
 # All subsets of x with at least two elements, largest sets first.
-# The candidate sets C_l are subsets of the pure children of a latent node,
-# which is typically a small collection of nodes.
 subsetsOfSizeAtLeastTwo <- function(x) {
   if (length(x) < 2) {
     return(list())
@@ -86,10 +84,7 @@ checkLatentNode <- function(g, l) {
 
 
 # Checks whether all direct effects of the latent digraph g are generically
-# sign-identifiable by verifying, for every latent node l, that there is a set
-# C_l of at least two pure children of l, a neighbor n_l of l outside of
-# des(C_l), and that every other node is trek separated from some c in C_l
-# by (emptyset, {l}).
+# sign-identifiable by Theorem 5.5
 directID <- function(g) {
   latents <- g$latentNodes()
 
@@ -109,13 +104,12 @@ directID <- function(g) {
 
 
 # The examples are only run in an interactive session, so that this file
-# can be sourced from a script without side effects.
+# can be sourced from a script.
 if (interactive()) {
 
 ###############
 ### Example ###
 ###############
-# Observed nodes: 1, ..., 4; latent nodes: 5, 6, with the edge 5 -> 6.
 A <- matrix(0, 6, 6)
 A[5, 1] <- 1
 A[5, 2] <- 1
@@ -128,13 +122,9 @@ plot(g)
 
 res <- directID(g)
 
-# All direct effects are generically sign-identifiable.
 res$id
 res$S
 
-# Certificate for latent node 5: the set C_5 of pure children, the neighbor
-# n_5 outside of des(C_5), and, for every other node v, a node c in C_5 that
-# is trek separated from v by (emptyset, {5}).
 res$certificates[["5"]]$C
 res$certificates[["5"]]$n
 res$certificates[["5"]]$separators
@@ -143,7 +133,6 @@ res$certificates[["5"]]$separators
 ###########################
 ### Non-identified case ###
 ###########################
-# Latent node 6 has only one pure child, since node 4 has the second parent 1.
 B <- matrix(0, 6, 6)
 B[5, 1] <- 1
 B[5, 2] <- 1
@@ -157,7 +146,6 @@ plot(gNotID)
 
 resNotID <- directID(gNotID)
 
-# The conditions of the theorem only hold for latent node 5.
 resNotID$id
 resNotID$S
 resNotID$certificates[["5"]]

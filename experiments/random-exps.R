@@ -26,10 +26,6 @@ nCores = 7   # number of cores used for the parallelization
 observedNodes = seq(nNodes-nLat)
 latentNodes = (nNodes-nLat+1):nNodes
 
-# Since LSCID takes considerably longer on denser graphs, the tasks are 
-# ordered by decreasing density, so that the expensive graphs are dispatched 
-# first and the cheap ones fill up the time of the cores that become free 
-# (longest job first).
 tasks = expand.grid(graph = 1:ngraphs, pErdos = pErdosList)
 tasks = tasks[order(-tasks$pErdos), ]
 
@@ -128,6 +124,7 @@ timeCounts = matrix(0,length(pErdosList),2)
 fracSums = matrix(0,length(pErdosList),2)
 fracCounts = matrix(0,length(pErdosList),2)
 diffSums = matrix(0,length(pErdosList),2)
+nILPSums = matrix(0,length(pErdosList),2)
 
 for (k in 1:length(results)){
   obj = results[[k]]
@@ -136,6 +133,7 @@ for (k in 1:length(results)){
     if (obj$res$id){
       table[row, 1] <- table[row, 1]+1
     }
+    nILPSums[row, 1] <- nILPSums[row, 1] + obj$res$nILP
     if (obj$res$nLP > 0){
       fracSums[row, 1] <- fracSums[row, 1] + obj$res$nILP/obj$res$nLP
       diffSums[row, 1] <- diffSums[row, 1] + obj$res$nILPdiff/obj$res$nLP
@@ -146,6 +144,7 @@ for (k in 1:length(results)){
     if (obj$resCan$id){
       table[row, 2] <- table[row, 2]+1
     }
+    nILPSums[row, 2] <- nILPSums[row, 2] + obj$resCan$nILP
     if (obj$resCan$nLP > 0){
       fracSums[row, 2] <- fracSums[row, 2] + obj$resCan$nILP/obj$resCan$nLP
       diffSums[row, 2] <- diffSums[row, 2] + obj$resCan$nILPdiff/obj$resCan$nLP
@@ -162,17 +161,16 @@ for (k in 1:length(results)){
   }
 }
 
-# Average computation time per graph (in seconds), average fraction of linear 
-# programs that needed the integer program on top, and average fraction of 
-# linear programs whose value |Z|+|P| was not attained by the integer program
 avgTimes = timeSums / timeCounts
 avgFracs = fracSums / fracCounts
 avgDiffs = diffSums / fracCounts
-table = cbind(table, round(avgTimes, 4), round(avgFracs, 4), round(avgDiffs, 4))
+table = cbind(table, round(avgTimes, 4), round(avgFracs, 4), round(avgDiffs, 4),
+              nILPSums)
 
 colnames(table) <- c("nLSC", "nCanLSC", "timeLSC", "timeCanLSC",
                      "fracILPLSC", "fracILPCanLSC",
-                     "fracDiffLSC", "fracDiffCanLSC")
+                     "fracDiffLSC", "fracDiffCanLSC",
+                     "nILPLSC", "nILPCanLSC")
 rownames(table) <- pErdosList
 
 print(table)

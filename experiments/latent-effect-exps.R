@@ -15,16 +15,10 @@ seed = 100
 nCores = 7
 
 
-# Random acyclic latent digraph in which every latent node has nInd indicators
-# and the latent nodes form a chain, so that there always are latent-to-latent
-# effects to identify. Every other edge is drawn independently with probability
-# p, in particular the edges from a latent node to an indicator of another
-# latent node, so that the indicators are not pure by construction.
-#
-# Acyclicity is ensured by drawing a level for every node and orienting all
-# edges from the lower to the higher level. An indicator is drawn after its own
-# latent node, all other nodes are placed uniformly at random, so that free
-# observed nodes and indicators can appear anywhere in the topological order.
+########################
+# Function Definitions #
+########################
+
 rIndicatorAdjMatrix <- function(nObs, nLat, nInd, p) {
   nTot = nObs + nLat
   observedNodes = seq(nObs)
@@ -54,11 +48,6 @@ rIndicatorAdjMatrix <- function(nObs, nLat, nInd, p) {
   return(L)
 }
 
-
-# Number of pure children of every latent node, needed to see how often the
-# methods are applicable at all. identifyL2OIV needs at least one pure
-# observed child per latent node, whereas directID needs at least two pure
-# children, which may also be latent nodes.
 nPureObsChildren <- function(g, latentNodes) {
   return(vapply(latentNodes, function(h) {
     length(validScalingIndicators(g, h))
@@ -71,24 +60,13 @@ nPureAnyChildren <- function(g, latentNodes) {
   }, integer(1)))
 }
 
-
-#############################################
-# Generate Graphs and check Identifiability #
-#############################################
-
-# Both methods are applied in two ways:
-#
-#   1. Directly to the original graph.
-#   2. To the latent subgraph, that is the graph without the edges outgoing
-#      from observed nodes, which is what latentCovGraph returns. This is only
-#      justified if the semi-direct effects are identified beforehand, which is
-#      checked by the latent subgraph criterion.
-
 observedNodes = seq(nObs)
 latentNodes = (nObs+1):(nObs+nLat)
 
-# One task per graph, ordered by decreasing p, since the methods take longer on
-# denser graphs (longest job first)
+###############
+# Simulations #
+###############
+
 tasks = expand.grid(graph = 1:ngraphs, p = pList)
 tasks = tasks[order(-tasks$p), ]
 
@@ -196,8 +174,7 @@ for (k in 1:length(results)){
     table[row, 6] <- table[row, 6]+1
   }
 
-  # Methods on the latent subgraph without the latent subgraph criterion,
-  # reported to see which of the two steps is binding
+  # Methods on the latent subgraph without the latent subgraph criterion
   if (obj$directLatent){
     table[row, 7] <- table[row, 7]+1
   }
